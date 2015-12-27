@@ -82,12 +82,12 @@ Author(s) / Copyright (s): Damon Hart-Davis 2014--2015
 void POSTalt()
   {
 
-#if defined(USE_MODULE_RFM22RADIOSIMPLE) 
-  // Initialise the radio, if configured, ASAP because it can suck a lot of power until properly initialised.
-  PrimaryRadio.preinit(NULL);
-  // Check that the radio is correctly connected; panic if not...
-  if(!PrimaryRadio.configure(1, &RFMConfig) || !PrimaryRadio.begin()) { panic(F("PANIC!")); }
-#endif
+//#if defined(USE_MODULE_RFM22RADIOSIMPLE) 
+//  // Initialise the radio, if configured, ASAP because it can suck a lot of power until properly initialised.
+//  PrimaryRadio.preinit(NULL);
+//  // Check that the radio is correctly connected; panic if not...
+//  if(!PrimaryRadio.configure(1, &RFMConfig) || !PrimaryRadio.begin()) { panic(F("PANIC!")); }
+//#endif
 
 
   // Force initialisation into low-power state.
