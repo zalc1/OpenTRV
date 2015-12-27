@@ -46,12 +46,6 @@ Author(s) / Copyright (s): Damon Hart-Davis 2014--2015
 #include <avr/pgmspace.h> // for radio config
 
 
-  // FOR FLASH.
-  static const char myPin[] PROGMEM = "0000";
-  static const char myAPN[] PROGMEM = "m2mkit.telefonica.com";
-  static const char myUDPAddr[] PROGMEM = "46.101.64.191";
-  static const char myUDPPort[] PROGMEM = "9999";
-
 
 
 // Link in support for alternate Power On Self-Test and main loop if required.
@@ -87,61 +81,6 @@ Author(s) / Copyright (s): Damon Hart-Davis 2014--2015
 // Can abort with panic() if need be.
 void POSTalt()
   {
-#ifdef USE_OTNULLRADIO
-// FIXME
-#elif defined USE_MODULE_SIM900
-//The config for the GSM depends on if you want it stored in flash or EEPROM.
-//
-//The SIM900LinkConfig object is located at the start of POSTalt() in AltMain.cpp and takes a set of void pointers to a \0 terminated string, either stored in flash or EEPROM.
-//
-//For EEPROM:
-//- Set the first field of SIM900LinkConfig to true.
-//- The configs are stored as \0 terminated strings starting at 0x300.
-//- You can program the eeprom using ./OTRadioLink/dev/utils/sim900eepromWrite.ino
-
-//  static const void *SIM900_PIN      = (void *)0x0300; // TODO confirm this address
-//  static const void *SIM900_APN      = (void *)0x0305;
-//  static const void *SIM900_UDP_ADDR = (void *)0x031B;
-//  static const void *SIM900_UDP_PORT = (void *)0x0329;
-//  static const OTSIM900Link::OTSIM900LinkConfig_t SIM900Config {
-//                                                  true, 
-//                                                  SIM900_PIN,
-//                                                  SIM900_APN,
-//                                                  SIM900_UDP_ADDR,
-//                                                  SIM900_UDP_PORT };
-//For Flash:
-//- Set the first field of SIM900LinkConfig to false.
-//- Make a set of \0 terminated strings with the PROGMEM attribute holding the config details.
-//- set the void pointers to point to the strings (or just cast the strings and pass them to SIM900LinkConfig directly)
-//
-//  const char myPin[] PROGMEM = "0000";
-//  const char myAPN[] PROGMEM = "m2mkit.telefonica.com"; // FIXME check this
-//  const char myUDPAddr[] PROGMEM = "46.101.52.242";
-//  const char myUDPPort[] PROGMEM = "9999";
-//  static const OTSIM900Link::OTSIM900LinkConfig_t SIM900Config {
-//                                                  false,
-//                                                  SIM900_PIN,
-//                                                  SIM900_APN,
-//                                                  SIM900_UDP_ADDR,
-//                                                  SIM900_UDP_PORT };
-
-    static const void *SIM900_PIN      = (void *)myPin;
-    static const void *SIM900_APN      = (void *)myAPN;
-    static const void *SIM900_UDP_ADDR = (void *)myUDPAddr;
-    static const void *SIM900_UDP_PORT = (void *)myUDPPort;
-    static const OTSIM900Link::OTSIM900LinkConfig_t SIM900Config {
-                                                    false,
-                                                    SIM900_PIN,
-                                                    SIM900_APN,
-                                                    SIM900_UDP_ADDR,
-                                                    SIM900_UDP_PORT };
-  static const OTRadioLink::OTRadioChannelConfig RFMConfig(&SIM900Config, true, true, true);
-  fastDigitalWrite(A3, LOW);  // This turns power to the shield on
-  pinMode(A3, OUTPUT);
-  
-#elif defined(USE_MODULE_RFM22RADIOSIMPLE)
-  static const OTRadioLink::OTRadioChannelConfig RFMConfig(NULL, true, true, true);
-#endif // USE_MODULE_SIM900
 
 #if defined(USE_MODULE_RFM22RADIOSIMPLE) 
   // Initialise the radio, if configured, ASAP because it can suck a lot of power until properly initialised.
@@ -159,11 +98,11 @@ void POSTalt()
   DEBUG_SERIAL_PRINTLN();
 #endif
   const int light = AmbLight.read();
-//#if 0 && defined(DEBUG)
-//  DEBUG_SERIAL_PRINT_FLASHSTRING("light: ");
-//  DEBUG_SERIAL_PRINT(light);
-//  DEBUG_SERIAL_PRINTLN();
-//#endif
+#if 1 && defined(DEBUG)
+  DEBUG_SERIAL_PRINT_FLASHSTRING("light: ");
+  DEBUG_SERIAL_PRINT(light);
+  DEBUG_SERIAL_PRINTLN();
+#endif
 
 
 
@@ -357,145 +296,12 @@ void loopAlt()
 
 
 
-//#if defined(USE_MODULE_FHT8VSIMPLE)
-//  // Try for double TX for more robust conversation with valve?
-//  const bool doubleTXForFTH8V = false;
-//  // FHT8V is highest priority and runs first.
-//  // ---------- HALF SECOND #0 -----------
-//  bool useExtraFHT8VTXSlots = localFHT8VTRVEnabled() && FHT8VPollSyncAndTX_First(doubleTXForFTH8V); // Time for extra TX before UI.
-////  if(useExtraFHT8VTXSlots) { DEBUG_SERIAL_PRINTLN_FLASHSTRING("ES@0"); }
-//#endif
 
 
 
-  switch(TIME_LSD)
-    {
-#ifdef ALLOW_STATS_TX
-    // Regular transmission of stats if NOT driving a local valve (else stats can be piggybacked onto that).
-    case 10:
-      {
-//      if((OTV0P2BASE::getMinutesLT() & 0x3) == 0) // Send once every 4 minutes.
-          {
-          // Send it!
-          // Try for double TX for extra robustness unless:
-          //   * this is a speculative 'extra' TX
-          //   * battery is low
-          //   * this node is a hub so needs to listen as much as possible
-          // This doesn't generally/always need to send binary/both formats
-          // if this is controlling a local FHT8V on which the binary stats can be piggybacked.
-          // Ie, if doesn't have a local TRV then it must send binary some of the time.
-          // Any recently-changed stats value is a hint that a strong transmission might be a good idea.
-          const bool doBinary = false; // !localFHT8VTRVEnabled() && OTV0P2BASE::randRNG8NextBoolean();
-          bareStatsTX(false, false, false);
-          }
-      break;
-      }
-#endif
-
-    // Poll ambient light level at a fixed rate.
-    // This allows the unit to respond consistently to (eg) switching lights on (eg TODO-388).
-    case 20: { AmbLight.read(); break; }
-
-#if defined(SENSOR_DS18B20_ENABLE)
-    case 30: { TemperatureC16.read(); break; }
-#endif // SENSOR_DS18B20_ENABLE
-
-#if defined(ENABLE_VOICE_SENSOR)
-      // read voice sensor
-    case 40: { Voice.read(); break; }
-#endif // (ENABLE_VOICE_SENSOR)
-
-#ifdef OCCUPANCY_SUPPORT
-    case 50: { Occupancy.read(); break; } // Needs regular poll.
-#endif // OCCUPANCY_SUPPORT
-  }
-
-
-PrimaryRadio.poll();
-
-
-
-//#if defined(USE_MODULE_FHT8VSIMPLE)
-//  if(useExtraFHT8VTXSlots)
-//    {
-//    // Time for extra TX before other actions, but don't bother if minimising power in frost mode.
-//    // ---------- HALF SECOND #1 -----------
-//    useExtraFHT8VTXSlots = localFHT8VTRVEnabled() && FHT8VPollSyncAndTX_Next(doubleTXForFTH8V); 
-////    if(useExtraFHT8VTXSlots) { DEBUG_SERIAL_PRINTLN_FLASHSTRING("ES@1"); }
-//    }
-//#endif
-
-
-
-
-
-//#if defined(USE_MODULE_FHT8VSIMPLE) && defined(V0P2BASE_TWO_S_TICK_RTC_SUPPORT)
-//  if(useExtraFHT8VTXSlots)
-//    {
-//    // ---------- HALF SECOND #2 -----------
-//    useExtraFHT8VTXSlots = localFHT8VTRVEnabled() && FHT8VPollSyncAndTX_Next(doubleTXForFTH8V); 
-////    if(useExtraFHT8VTXSlots) { DEBUG_SERIAL_PRINTLN_FLASHSTRING("ES@2"); }
-//    }
-//#endif
-
-
-
-
-
-//#if defined(USE_MODULE_FHT8VSIMPLE) && defined(V0P2BASE_TWO_S_TICK_RTC_SUPPORT)
-//  if(useExtraFHT8VTXSlots)
-//    {
-//    // ---------- HALF SECOND #3 -----------
-//    useExtraFHT8VTXSlots = localFHT8VTRVEnabled() && FHT8VPollSyncAndTX_Next(doubleTXForFTH8V); 
-////    if(useExtraFHT8VTXSlots) { DEBUG_SERIAL_PRINTLN_FLASHSTRING("ES@3"); }
-//    }
-//#endif
-
-
-//#ifdef HAS_DORM1_VALVE_DRIVE
-//  // Move valve to new target every minute to try to upset it!
-//  // Targets at key thresholds and random.
-//  if(0 == TIME_LSD)
-//    {
-//    switch(OTV0P2BASE::randRNG8() & 1)
-//      {
-//      case 0: ValveDirect.set(OTRadValve::DEFAULT_VALVE_PC_MIN_REALLY_OPEN-1); break; // Nominally shut.
-//      case 1: ValveDirect.set(OTRadValve::DEFAULT_VALVE_PC_MODERATELY_OPEN); break; // Nominally open.
-//      // Random.
-////      default: ValveDirect.set(OTV0P2BASE::randRNG8() % 101); break;
-//      }
-//    }
-//
-//  // Simulate human doing the right thing after fitting valve when required.
-//  if(ValveDirect.isWaitingForValveToBeFitted()) { ValveDirect.signalValveFitted(); }
-//
-//  // Provide regular poll to motor driver.
-//  // May take significant time to run
-//  // so don't call when timing is critical or not much left,
-//  // eg around critical TXes.
-//  const uint8_t pc = ValveDirect.read();
-//  DEBUG_SERIAL_PRINT_FLASHSTRING("Pos%: ");
-//  DEBUG_SERIAL_PRINT(pc);
-//  DEBUG_SERIAL_PRINTLN();
-//#endif
-
-
-
-//  // Reading shaft encoder.
-//  // Measure motor count against (fixed) internal reference.
-//  power_intermittent_peripherals_enable(true);
-//  const uint16_t mc = analogueNoiseReducedRead(MOTOR_DRIVE_MC_AIN, INTERNAL);
-//  void power_intermittent_peripherals_disable();
-//  DEBUG_SERIAL_PRINT_FLASHSTRING("Count input: ");
-//  DEBUG_SERIAL_PRINT(mc);
-//  DEBUG_SERIAL_PRINTLN();
-
-
-
-
-
-
-
+   const uint8_t l = AmbLight.read();
+   DEBUG_SERIAL_PRINT(l);
+   DEBUG_SERIAL_PRINTLN();
 
 
 
