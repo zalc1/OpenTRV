@@ -88,7 +88,7 @@ static const uint8_t shiftRawScaleTo8Bit = 2;
 // Ensure scaleFactor is a power of two for speed.
 
 #ifndef LDR_EXTRA_SENSITIVE 
-// Don't extend the dynamic range
+// Don't extend the dynamic range of this ambient light sensor
 // if the photosensor is badly located or otherwise needs to be made more sensitive.
 //
 // IF DEFINED: extend optosensor range as far as possible at the expense of loss of linearity.
@@ -154,7 +154,7 @@ uint8_t AmbientLight::read()
   {
   // Power on to top of LDR/phototransistor.
 //  power_intermittent_peripherals_enable(false); // No need to wait for anything to stablise as direct of IO_POWER_UP.
-  power_intermittent_peripherals_enable(false); // Will take a nap() to quiet supply shortly.
+  power_intermittent_peripherals_enable(false); // Will take a nap() below to allow supply to quieten.
   OTV0P2BASE::nap(WDTO_30MS); // Give supply a moment to settle, eg from heavy current draw.
   // Photosensor vs Vbandgap or Vsupply as selected by ALREFERENCE, [0,1023].
   const uint16_t al0 = OTV0P2BASE::analogueNoiseReducedRead(LDR_SENSOR_AIN, ALREFERENCE);
@@ -250,7 +250,7 @@ DEBUG_SERIAL_PRINTLN();
       }
     }
 
-#if 1 && defined(DEBUG)
+#if 0 && defined(DEBUG)
   DEBUG_SERIAL_PRINT_FLASHSTRING("Ambient light (/1023): ");
   DEBUG_SERIAL_PRINT(al);
   DEBUG_SERIAL_PRINTLN();
@@ -266,7 +266,7 @@ DEBUG_SERIAL_PRINTLN();
   DEBUG_SERIAL_PRINTLN();
 #endif
 
-#if 1 && defined(DEBUG)
+#if 0 && defined(DEBUG)
   DEBUG_SERIAL_PRINT_FLASHSTRING("isRoomLit: ");
   DEBUG_SERIAL_PRINT(isRoomLitFlag);
   DEBUG_SERIAL_PRINTLN();
@@ -318,8 +318,16 @@ void AmbientLight::_recomputeThresholds()
     }
 
   // Compute thresholds to fit within the observed sensed value range.
+  //
   // TODO: a more sophisticated notion of distribution of values may be needed, esp for non-linear scale.
+  // TODO: possibly allow a small adjustment on top of this to allow at least one trigger-free hour each day.
+  // Some areas may have background flicker eg from trees moving or cars passing, so units there may need desensitising.
+  // Could (say) increment an additional margin (up to ~25%) on each non-zero-trigger last hour, else decrement.
+  //
   // Take upwards delta indicative of lights on, and hysteresis, as ~25% of FSD.
+  // TODO: possibly allow a small adjustment on top of this to allow >= 1 each trigger and trigger-free hours each day.
+  // Some areas may have background flicker eg from trees moving or cars passing, so units there may need desensitising.
+  // Could (say) increment an additional margin (up to ~25%) on each non-zero-trigger last hour, else decrement.
   upDelta = max((recentMax - recentMin) >> 2, ABS_MIN_AMBLIGHT_HYST_UINT8);
   // Provide some noise elbow-room above the observed minimum.
   // Set the hysteresis values to be the same as the upDelta.
@@ -350,7 +358,7 @@ void AmbientLight::setMax(uint8_t recentMaximumOrFF, uint8_t longerTermMaximumOr
     }
   _recomputeThresholds();
 
-#if 1 && defined(DEBUG)
+#if 0 && defined(DEBUG)
   DEBUG_SERIAL_PRINT_FLASHSTRING("Ambient recent min/max: ");
   DEBUG_SERIAL_PRINT(recentMin);
   DEBUG_SERIAL_PRINT(' ');
