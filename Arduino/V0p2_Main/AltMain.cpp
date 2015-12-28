@@ -298,7 +298,7 @@ void loopAlt()
 
 
 
-
+   LED_HEATCALL_OFF();
    const uint8_t l = AmbLight.read();
    DEBUG_SERIAL_PRINT(l);
    DEBUG_SERIAL_PRINTLN();
