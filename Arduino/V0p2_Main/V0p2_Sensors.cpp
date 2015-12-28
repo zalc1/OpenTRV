@@ -143,10 +143,11 @@ uint8_t AmbientLight::read()
   // Power on to top of LDR/phototransistor.
   power_intermittent_peripherals_enable(false); // No need to wait for anything to stablise as direct of IO_POWER_UP.
   const uint16_t al0 = OTV0P2BASE::analogueNoiseReducedRead(LDR_SENSOR_AIN, ALREFERENCE);
-#if defined(EXTEND_OPTO_SENSOR_RANGE)
+#if !defined(EXTEND_OPTO_SENSOR_RANGE)
+  const uint16_t al = al0; // Use raw value as-is.
+#else // defined(EXTEND_OPTO_SENSOR_RANGE)
   uint16_t al; // Ambient light.
-  uint16_t ale; // Ambient light extended range.
-  // Default shift of raw value to extend sacle.
+  // Default shift of raw value to extend effective scale.
   al = al0 >> shiftExtendedToRawScale;
   // If simple reading against bandgap at full scale then compute extended range.
   // Two extra ADC measurements take extra time and introduce noise.
@@ -157,7 +158,8 @@ uint8_t AmbientLight::read()
     Supply_cV.read();
     const uint16_t vbg = Supply_cV.getRawInv(); // Vbandgap wrt Vsupply, [0,1023].
     // Compute value in extended range up to ~1024 * Vsupply/Vbandgap.
-    ale = fnmin(4095U, ((al1 << 6) / vbg)) << 4; // Faster uint16_t-only approximation to (uint16_t)((al1 * 1024L) / vbg)).
+    // Faster overflow-free uint16_t-only approximation to (uint16_t)((al1 * 1024L) / vbg)).
+    const uint16_t ale = fnmin(4095U, ((al1 << 6) / vbg)) << 4;
     if(ale > al0) // Keep output scale monotonic...
       { al = fnmin(1023U, ale >> shiftExtendedToRawScale); }
 #if 1 && defined(DEBUG)
@@ -176,15 +178,12 @@ uint8_t AmbientLight::read()
     DEBUG_SERIAL_PRINTLN();
 #endif
     }
-#else // !defined(EXTEND_OPTO_SENSOR_RANGE)
-  const uint16_t ale = al0;
-  const uint16_t al = al0;
 #endif // defined(EXTEND_OPTO_SENSOR_RANGE)
   // Power off to top of LDR/phototransistor.
   power_intermittent_peripherals_disable();
 
   // Capture entropy from changed LS bits.
-  if((uint8_t)al != (uint8_t)rawValue) { ::OTV0P2BASE::addEntropyToPool((uint8_t)ale, 0); } // Claim zero entropy as may be forced by Eve.
+  if((uint8_t)al != (uint8_t)rawValue) { ::OTV0P2BASE::addEntropyToPool((uint8_t)al, 0); } // Claim zero entropy as may be forced by Eve.
 
   // Hold the existing/old value for comparison.
   const uint8_t oldValue = value;
@@ -216,8 +215,10 @@ uint8_t AmbientLight::read()
       {
       Occupancy.markAsPossiblyOccupied();
 #if 1 && defined(DEBUG)
-DEBUG_SERIAL_PRINT_FLASHSTRING("  UP: ambient light rise/newval/dt/lt: ");
+DEBUG_SERIAL_PRINT_FLASHSTRING("  UP: ambient light rise/upDelta/newval/dt/lt: ");
 DEBUG_SERIAL_PRINT((newValue - value));
+DEBUG_SERIAL_PRINT(' ');
+DEBUG_SERIAL_PRINT(upDelta);
 DEBUG_SERIAL_PRINT(' ');
 DEBUG_SERIAL_PRINT(newValue);
 DEBUG_SERIAL_PRINT(' ');
