@@ -88,7 +88,8 @@ static const uint8_t shiftRawScaleTo8Bit = 2;
 // Ensure scaleFactor is a power of two for speed.
 
 #ifndef LDR_EXTRA_SENSITIVE 
-// Don't extend range if photosensor badly located or otherwise needs to be made more sensitive.
+// Don't extend the dynamic range
+// if the photosensor is badly located or otherwise needs to be made more sensitive.
 //
 // IF DEFINED: extend optosensor range as far as possible at the expense of loss of linearity.
 #define EXTEND_OPTO_SENSOR_RANGE
