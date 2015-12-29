@@ -324,11 +324,12 @@ void AmbientLight::_recomputeThresholds()
   // Some areas may have background flicker eg from trees moving or cars passing, so units there may need desensitising.
   // Could (say) increment an additional margin (up to ~25%) on each non-zero-trigger last hour, else decrement.
   //
-  // Take upwards delta indicative of lights on, and hysteresis, as ~25% of FSD.
+  // Take upwards delta indicative of lights on, and hysteresis, as ~12.5% of FSD.
+  //
   // TODO: possibly allow a small adjustment on top of this to allow >= 1 each trigger and trigger-free hours each day.
   // Some areas may have background flicker eg from trees moving or cars passing, so units there may need desensitising.
-  // Could (say) increment an additional margin (up to ~25%) on each non-zero-trigger last hour, else decrement.
-  upDelta = max((recentMax - recentMin) >> 2, ABS_MIN_AMBLIGHT_HYST_UINT8);
+  // Could (say) increment an additional margin (up to half) on each non-zero-trigger last hour, else decrement.
+  upDelta = max((recentMax - recentMin) >> 3, ABS_MIN_AMBLIGHT_HYST_UINT8);
   // Provide some noise elbow-room above the observed minimum.
   // Set the hysteresis values to be the same as the upDelta.
   darkThreshold = (uint8_t) min(254, recentMin+1 + (upDelta>>1));
@@ -339,6 +340,7 @@ void AmbientLight::_recomputeThresholds()
   }
 
 // Set minimum eg from recent stats, to allow auto adjustment to dark; ~0/0xff means no min available.
+// Call regularly, roughly hourly, to drive other internal time-dependent adaptation.
 void AmbientLight::setMin(uint8_t recentMinimumOrFF, uint8_t longerTermMinimumOrFF)
   {
   // Simple approach: will ignore an 'unset'/0xff value if the other is good.
@@ -347,6 +349,7 @@ void AmbientLight::setMin(uint8_t recentMinimumOrFF, uint8_t longerTermMinimumOr
   }
 
 // Set maximum eg from recent stats, to allow auto adjustment to dark; ~0/0xff means no max available.
+// Call regularly, roughly hourly, to drive other internal time-dependent adaptation.
 void AmbientLight::setMax(uint8_t recentMaximumOrFF, uint8_t longerTermMaximumOrFF)
   {
   if(0xff == recentMaximumOrFF) { recentMin = longerTermMaximumOrFF; }
